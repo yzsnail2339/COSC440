@@ -222,5 +222,5 @@ def main(cifar10_data_folder):
 
 
 if __name__ == '__main__':
-    cifar_data_folder = './CIFAR_data/'
+    cifar_data_folder = './assignment2 student/CIFAR_data/'
     main(cifar_data_folder)
