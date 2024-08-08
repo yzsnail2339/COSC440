@@ -33,7 +33,7 @@ def conv2d(inputs, filters, strides, padding):
 	# Cleaning padding input
 	assert  input_in_channels == filter_in_channels, f"number of channels in input filters is {input_in_channels} and inputs is {filter_in_channels}, not equivalent"
 	pad_h, pad_w = 0, 0
-	if padding is 'SAME':
+	if padding == 'SAME':
 		pad_h = int((filter_height - 1)//2)
 		pad_w = int((filter_width - 1)//2)
 		pad_width = ((0, 0), (pad_h, pad_h), (pad_w, pad_w), (0, 0))
@@ -44,12 +44,19 @@ def conv2d(inputs, filters, strides, padding):
 	output_w = int((in_width + 2*pad_w - filter_width) // strideX + 1)
 	output_result = np.zeros((num_examples, output_h, output_w, filter_out_channels))
 	
+	# for n in range(num_examples):
+	# 	for c_in in range(input_in_channels):
+	# 		for h in range(output_h):
+	# 			for w in range(output_w):
+	# 				for c_out in range(filter_out_channels):
+	# 					output_result[n,h,w,c_out] += np.sum(inputs[n, h: h + filter_height, w: w + filter_width, c_in] * filters[:, :, c_in, c_out])
+	# return output_result
+
 	for n in range(num_examples):
-		for c_in in range(input_in_channels):
-			for h in range(output_h):
-				for w in range(output_w):
-					for c_out in range(filter_out_channels):
-						output_result[n,h,w,c_out] += np.sum(inputs[n, h: h + filter_height, w: w + filter_width, c_in] * filters[:, :, c_in, c_out])
+		for h in range(output_h):
+			for w in range(output_w):
+				for c_out in range(filter_out_channels):
+					output_result[n,h,w,c_out] += np.sum(inputs[n, h: h + filter_height, w: w + filter_width, :] * filters[:, :, : , c_out])
 	return output_result
 
 if __name__ == "__main__":
