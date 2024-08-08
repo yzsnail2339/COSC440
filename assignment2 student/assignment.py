@@ -119,9 +119,9 @@ class ModelPart3:
         filter_mode = [3,3,3,13]
         input1 = 32 * 32 * 3
         if self.padding == 'VALID':
-            input1 = (32 - filter_mode[0] + 1) * (32 - filter_mode[1] + 1) * filter_mode[3]
-        else:
-            input1 = 32 * 32 * filter_mode[3]
+            input1 = (32 - filter_mode[0] + 1) * (32 - filter_mode[1] + 1) * filter_mode[3] // 4
+        if self.padding == 'SAME':
+            input1 = 32 * 32 * filter_mode[3] // 4
         output1 = 256
         input2 = 256
         output2 = 2
@@ -162,8 +162,9 @@ class ModelPart3:
 
         conv_layer = tf.nn.conv2d(inputs, self.filters, self.strides, padding=self.padding)
         conv_layer = tf.nn.relu(conv_layer)
-        conv_layer = tf.reshape(conv_layer, [conv_layer.shape[0],-1])
-        layer1 = linear_unit(conv_layer, self.W1, self.B1)
+        max_pool = tf.nn.max_pool2d(conv_layer, ksize=(5, 5), strides=(2, 2), padding=self.padding)
+        flat_layer = tf.reshape(max_pool, [max_pool.shape[0],-1])
+        layer1 = linear_unit(flat_layer, self.W1, self.B1)
         layer1 = tf.nn.relu(layer1)
         layer2 = linear_unit(layer1, self.W2, self.B2)
         return layer2
@@ -281,9 +282,14 @@ def main(cifar10_data_folder):
 
     model = ModelPart3()
     epoch = 25
+    heighest_accuracy = 0
     for _ in range(epoch):
         train(model, train_inputs, train_labels)
-        print(test(model, test_inputs, test_labels).numpy())
+        each_accuracy = test(model, test_inputs, test_labels).numpy()
+        print(each_accuracy)
+        if heighest_accuracy < each_accuracy:
+            heighest_accuracy = each_accuracy
+    print("heighest_accuracy:", heighest_accuracy)
     visualize_results(test_inputs[:10], model.call(test_inputs[:10]), test_labels[:10], CLASS_DOG, CLASS_CAT)
 
 
