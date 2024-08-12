@@ -5,7 +5,6 @@ import tensorflow as tf
 import numpy as np
 import random
 import math
-
 def conv2d(inputs, filters, strides, padding):
     """
     Performs 2D convolution given 4D inputs and filter Tensors.
@@ -42,7 +41,7 @@ def conv2d(inputs, filters, strides, padding):
     # Calculate output dimensions
     output_h = int((in_height + 2*pad_h - filter_height) // strideY + 1)
     output_w = int((in_width + 2*pad_w - filter_width) // strideX + 1)
-    output_result = np.zeros((num_examples, output_h, output_w, filter_out_channels))
+    output_result = np.zeros((num_examples, output_h, output_w, filter_out_channels), dtype=np.float32)
     
     # for n in range(num_examples):
     # 	for c_in in range(input_in_channels):
@@ -52,12 +51,16 @@ def conv2d(inputs, filters, strides, padding):
     # 					output_result[n,h,w,c_out] += np.sum(inputs[n, h: h + filter_height, w: w + filter_width, c_in] * filters[:, :, c_in, c_out])
     # return output_result
 
-    for n in range(num_examples):
-        for h in range(output_h):
-            for w in range(output_w):
-                for c_out in range(filter_out_channels):
-                    output_result[n,h,w,c_out] += np.sum(inputs[n, h: h + filter_height, w: w + filter_width, :] * filters[:, :, : , c_out])
+    # for n in range(num_examples):
+    #     for h in range(output_h):
+    #         for w in range(output_w):
+    #             for c_out in range(filter_out_channels):
+    #                 output_result[n,h,w,c_out] += np.sum(inputs[n, h: h + filter_height, w: w + filter_width, :] * filters[:, :, : , c_out])
+    # return output_result
+
+    for h in range(output_h):
+        for w in range(output_w):
+            for c_out in range(filter_out_channels):
+                output_result[:,h,w,c_out] += np.sum(inputs[:, h: h + filter_height, w: w + filter_width, :] * filters[:, :, : , c_out])
     return output_result
-
-
 
