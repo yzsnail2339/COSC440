@@ -123,7 +123,7 @@ class ModelPart3:
         if self.padding == 'SAME':
             input1 = 32 * 32 * filter_mode[3] // 4
         output1 = 256
-        input2 = 256
+        input2 = 256 
         output2 = 2
 
 
@@ -159,7 +159,7 @@ class ModelPart3:
         """
         # Remember that
         # shape of input = (num_inputs (or batch_size), in_height, in_width, in_channels)
-
+ 
         conv_layer = tf.nn.conv2d(inputs, self.filters, self.strides, padding=self.padding)
         conv_layer = tf.nn.relu(conv_layer)
         max_pool = tf.nn.max_pool2d(conv_layer, ksize=(5, 5), strides=(2, 2), padding=self.padding)
@@ -280,7 +280,7 @@ def main(cifar10_data_folder):
     train_inputs, train_labels = get_data(train_data_path, CLASS_DOG, CLASS_CAT)
     test_inputs, test_labels = get_data(test_data_path, CLASS_DOG, CLASS_CAT)
 
-    model = ModelPart3()
+    model = ModelPart0()
     epoch = 25
     heighest_accuracy = 0
     for _ in range(epoch):

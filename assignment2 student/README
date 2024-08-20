@@ -7,12 +7,9 @@ Which neural net is better suited for identifying the digit in each image: a con
 Q3: Consider the dataset shown in this scatterplot:
 The orange points are labeled with class label 0, and the blue points are labeled with class label 1. Write out a mathematical expression in terms of the inputs, using linear layers and ReLUs, that will correctly classify all of these points. We expect something like output = .. as many expressions/nested expressions as you need.. where an expression can include a literal number such as 3.4, calls to relu(...), x1, x2, and +, *, and > operators. For example, this expression does not work but does follow the expected format:
 output = 2 * relu(x1) + relu(x1 + x2) > 1
-Hint: Use https://tinyurl.com/y5gayl5b and with your mouse hover over the bias/weight edges.
-    output1 = 2.8 * relu(x1) - 0.84 * relu(x2)  - 3 * relu(x1 + x2) > 1
-    output2 = 0.8 * relu(x1) - 1.2 * relu(x2)  + 4.4 * relu(x1 + x2) > 1
-    output3 = - 0.95 * relu(x1) - 2.8 * relu(x2)  - 3 * relu(x1 + x2) > 1
-    output = linear(output1, output2, output3)
-
+Hint: Use https://tinyurl.com/y5gayl5b and with your mouse hover over the bias/weight edges.  
+    output = relu(w11 * x1 + w12 * x2 + b1) + relu(w21 * x1 + w22 * x2 + b2) + 
+            relu(w31 * x1 + w32 * x2 + b3)
 Q4: Read about this algorithm, which claims to predict “criminality” based on people’s faces, and was created by researchers in China. (If interested, you can click through to the arxiv link where the researchers publish a response to criticism & media about their original paper).
   (a) What factors do the researchers claim contribute to “criminality?” (1-3 sentences)
   (b) What’s one potential confounding variable/feature that their algorithm learned? What’s your evaluation of the “effectiveness” of this algorithm? (2-4 sentences)
