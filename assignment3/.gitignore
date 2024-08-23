@@ -1,0 +1,2 @@
+# Ignore TensorBoard event files
+tensorboard/events.out.tfevents*
