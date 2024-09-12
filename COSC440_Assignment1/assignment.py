@@ -33,12 +33,12 @@ class Model:
         :return: output, unscaled output values for each class per image # (batch_size x 10)
         """
         # TODO: Write the forward pass logic for your model
-        probabilities = np.dot(np.hstack((inputs, np.ones((inputs.shape[0], 1)))), np.hstack((self.W, self.b)).T)
-        # probabilities = inputs @ self.W + self.b
+        # probabilities = np.dot(np.hstack((inputs, np.ones((inputs.shape[0], 1)))), np.hstack((self.W, self.b)).T)
+        probabilities =  np.dot(inputs, self.W.T) + self.b.T
         return probabilities
         
 
-    def back_propagation(self, inputs, outputs, labels):
+    def back_propagation(self, inputs, outputs, labels): 
         """
         Returns the gradients for model's weights and biases
         after one forward pass. The learning algorithm for updating weights
@@ -182,4 +182,5 @@ def main(mnist_data_folder):
 
 if __name__ == '__main__':
     #TODO: you might need to change this to something else if you run locally
-    main("./MNIST_data")
+    # main("./MNIST_data")
+    main("COSC440_Assignment1/MNIST_data")
