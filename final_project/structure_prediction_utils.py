@@ -97,8 +97,8 @@ def load_preprocessed_data(data_folder, filename):
     #debug info
     print("Debug info, shape of one data record:")
     for record in decoded_dataset.take(1):
-        # for key, value in record.items():
-        #     print(key,"shape=",value.shape)
+        for key, value in record.items():
+            print(key,"shape=",value.shape)
         print("Value info of one data record, structure:",record['tertiary'][0])
 
     return decoded_dataset

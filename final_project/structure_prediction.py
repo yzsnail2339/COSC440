@@ -44,8 +44,8 @@ def get_input_output_masks(batch):
     inputs = {'primary_onehot':batch['primary_onehot']}
     outputs = batch['true_distances']
     masks = batch['distance_mask']
-
     return inputs, outputs, masks
+    
 def train(model, train_dataset, validate_dataset=None, train_loss=utils.mse_loss):
     '''
     Trains the model
@@ -128,7 +128,7 @@ def main(data_folder):
 
 
 if __name__ == '__main__':
-    local_home = os.path.expanduser("~")  # on my system this is /Users/jat171
-    data_folder = local_home + '/uc/teaching/440/project/2024/data/'
+    data_folder = 'd:/UC_Master/COSC440/assignment_all/final_project/'
+
 
     main(data_folder)
