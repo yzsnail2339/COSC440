@@ -11,7 +11,7 @@ from tensorflow import keras
 class ProteinStructurePredictor0(keras.Model):
     def __init__(self):
         super().__init__()
-        # self.layer0 = keras.layers.Conv2D(5, 5, activation='gelu', padding="same")
+        self.layer0 = keras.layers.Conv2D(5, 5, activation='gelu', padding="same")
         self.layer1 = keras.layers.Conv2D(1, 1, activation='gelu', padding="same")
 
     #@tf.function
@@ -19,10 +19,10 @@ class ProteinStructurePredictor0(keras.Model):
         primary_one_hot = inputs['primary_onehot']
 
         # outer sum to get a NUM_RESIDUES x NUM_RESIDUES x embedding size
-        # x = tf.expand_dims(primary_one_hot, -2) + tf.expand_dims(primary_one_hot, -3)
+        x = tf.expand_dims(primary_one_hot, -2) + tf.expand_dims(primary_one_hot, -3)   
 
         # filter the initial representation into an embedded representation
-        # x = self.layer0(x)
+        x = self.layer0(x)
 
 
         # add positional distance information
@@ -31,8 +31,8 @@ class ProteinStructurePredictor0(keras.Model):
         distances_bc = tf.expand_dims(
             tf.broadcast_to(distances, [primary_one_hot.shape[0], utils.NUM_RESIDUES, utils.NUM_RESIDUES]), -1)
 
-        # x = tf.concat([x, x * distances_bc, distances_bc], axis=-1)
-        x = distances_bc
+        x = tf.concat([x, x * distances_bc, distances_bc], axis=-1)
+        # x = distances_bc
         # generate result
         x = self.layer1(x)
 
@@ -124,7 +124,7 @@ def main(data_folder):
 
     test(model, test_records, True)
 
-    model.save(data_folder + '/model')
+    # model.save(data_folder + '/model')
 
 
 if __name__ == '__main__':
