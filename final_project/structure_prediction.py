@@ -6,6 +6,7 @@ import tensorflow as tf
 import numpy as np
 import random
 import structure_prediction_utils as utils
+from Autoencoder import AutoEncoder
 from tensorflow import keras
 
 class ProteinStructurePredictor0(keras.Model):
@@ -112,6 +113,45 @@ class ProteinStructurePredictor2(keras.Model):
         # generate result
         x = self.layer1(x)
         return x
+    
+class ProteinStructurePredictor3(keras.Model):
+    def __init__(self):
+        super().__init__()
+        self.layer0 = keras.layers.Conv2D(5, 5, activation='gelu', padding="same")
+        self.layer1 = keras.layers.Conv2D(1, 1, activation='gelu', padding="same")
+        self.pooling = keras.layers.MaxPooling2D(pool_size=(8, 8))
+        self.upsampling = keras.layers.UpSampling2D(size=(8, 8))
+        self.attention = keras.layers.MultiHeadAttention(num_heads=1, key_dim=2)
+        self.dense = keras.layers.Dense(64, activation='gelu')
+        self.autencode = AutoEncoder()
+
+    #@tf.function
+    def call(self, inputs, mask=None):
+        primary_one_hot = inputs['primary_onehot']
+        attention_output = self.attention(primary_one_hot, primary_one_hot, primary_one_hot)
+        x = primary_one_hot + attention_output
+        # outer sum to get a NUM_RESIDUES x NUM_RESIDUES x embedding size
+        x = tf.expand_dims(x, -2) + tf.expand_dims(x, -3)   
+
+        # filter the initial representation into an embedded representation
+        x = self.layer0(x)
+
+
+        # add positional distance information
+        r = tf.range(0, utils.NUM_RESIDUES, dtype=tf.float32)
+        distances = tf.abs(tf.expand_dims(r, -1) - tf.expand_dims(r, -2))
+        distances_bc = tf.expand_dims(
+            tf.broadcast_to(distances, [primary_one_hot.shape[0], utils.NUM_RESIDUES, utils.NUM_RESIDUES]), -1)
+
+        x = tf.concat([x, x * distances_bc, distances_bc], axis=-1)
+        x = self.pooling(x)
+        x = self.dense(x)
+        x = self.autencode(x)
+        # x = distances_bc
+        x = self.upsampling(x)
+        # generate result
+        x = self.layer1(x)
+        return x
 
 def get_n_records(batch):
     return batch['primary_onehot'].shape[0]
@@ -205,7 +245,7 @@ def main(data_folder):
     with strategy.scope():
         model = ProteinStructurePredictor2()
         model.optimizer = keras.optimizers.Adam(learning_rate=1e-2)
-        model.batch_size = 16   #1024
+        model.batch_size = 4   #1024
 
 
 
