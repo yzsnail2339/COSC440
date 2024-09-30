@@ -37,6 +37,81 @@ class ProteinStructurePredictor0(keras.Model):
         x = self.layer1(x)
 
         return x
+    
+class ProteinStructurePredictor1(keras.Model):
+    def __init__(self):
+        super().__init__()
+        self.layer0 = keras.layers.Conv2D(5, 5, activation='gelu', padding="same")
+        self.layer1 = keras.layers.Conv2D(1, 1, activation='gelu', padding="same")
+        self.pooling = keras.layers.MaxPooling2D(pool_size=(8, 8))
+        self.upsampling = keras.layers.UpSampling2D(size=(8, 8))
+        self.attention = keras.layers.MultiHeadAttention(num_heads=1, key_dim=2)
+        self.dense = keras.layers.Dense(64, activation='gelu')
+
+    #@tf.function
+    def call(self, inputs, mask=None):
+        primary_one_hot = inputs['primary_onehot']
+
+        # outer sum to get a NUM_RESIDUES x NUM_RESIDUES x embedding size
+        x = tf.expand_dims(primary_one_hot, -2) + tf.expand_dims(primary_one_hot, -3)   
+
+        # filter the initial representation into an embedded representation
+        x = self.layer0(x)
+
+
+        # add positional distance information
+        r = tf.range(0, utils.NUM_RESIDUES, dtype=tf.float32)
+        distances = tf.abs(tf.expand_dims(r, -1) - tf.expand_dims(r, -2))
+        distances_bc = tf.expand_dims(
+            tf.broadcast_to(distances, [primary_one_hot.shape[0], utils.NUM_RESIDUES, utils.NUM_RESIDUES]), -1)
+
+        x = tf.concat([x, x * distances_bc, distances_bc], axis=-1)
+        x = self.pooling(x)
+        attention_output = self.attention(x, x, x)
+        x = x + attention_output
+        x = self.dense(x)
+        # x = distances_bc
+        x = self.upsampling(x)
+        # generate result
+        x = self.layer1(x)
+        return x
+
+class ProteinStructurePredictor2(keras.Model):
+    def __init__(self):
+        super().__init__()
+        self.layer0 = keras.layers.Conv2D(5, 5, activation='gelu', padding="same")
+        self.layer1 = keras.layers.Conv2D(1, 1, activation='gelu', padding="same")
+        self.pooling = keras.layers.MaxPooling2D(pool_size=(4, 4))
+        self.upsampling = keras.layers.UpSampling2D(size=(4, 4))
+        self.attention = keras.layers.MultiHeadAttention(num_heads=4, key_dim=16)
+        self.dense = keras.layers.Dense(64, activation='gelu')
+
+    #@tf.function
+    def call(self, inputs, mask=None):
+        primary_one_hot = inputs['primary_onehot']
+        attention_output = self.attention(primary_one_hot, primary_one_hot, primary_one_hot)
+        x = primary_one_hot + attention_output
+        # outer sum to get a NUM_RESIDUES x NUM_RESIDUES x embedding size
+        x = tf.expand_dims(x, -2) + tf.expand_dims(x, -3)   
+
+        # filter the initial representation into an embedded representation
+        x = self.layer0(x)
+
+
+        # add positional distance information
+        r = tf.range(0, utils.NUM_RESIDUES, dtype=tf.float32)
+        distances = tf.abs(tf.expand_dims(r, -1) - tf.expand_dims(r, -2))
+        distances_bc = tf.expand_dims(
+            tf.broadcast_to(distances, [primary_one_hot.shape[0], utils.NUM_RESIDUES, utils.NUM_RESIDUES]), -1)
+
+        x = tf.concat([x, x * distances_bc, distances_bc], axis=-1)
+        x = self.pooling(x)
+        x = self.dense(x)
+        # x = distances_bc
+        x = self.upsampling(x)
+        # generate result
+        x = self.layer1(x)
+        return x
 
 def get_n_records(batch):
     return batch['primary_onehot'].shape[0]
@@ -53,6 +128,8 @@ def train(model, train_dataset, validate_dataset=None, train_loss=utils.mse_loss
 
     avg_loss = 0.
     avg_mse_loss = 0.
+    avg_loss_list = []
+    avg_mse_loss_list = []
 
     def print_loss():
         if validate_dataset is not None:
@@ -84,12 +161,14 @@ def train(model, train_dataset, validate_dataset=None, train_loss=utils.mse_loss
             avg_mse_loss = tf.reduce_sum(utils.mse_loss(outputs, labels, masks)) / get_n_records(batch)
 
         model.optimizer.apply_gradients(zip(gradients, model.trainable_weights))
-
+        avg_loss_list.append(avg_loss)
+        avg_mse_loss_list.append(avg_mse_loss)
         print_loss()
 
         if first:
-            print(model.summary())
+            # print(model.summary())
             first = False
+    utils.display_two_loss(avg_loss_list, avg_mse_loss_list)
 
 def test(model, test_records, viz=False):
     for batch in test_records.batch(1024):
@@ -99,28 +178,51 @@ def test(model, test_records, viz=False):
         print(f'test mse loss {test_loss:.3f}')
 
     if viz:
-        print(model.summary())
+        # print(model.summary())
         r = random.randint(0, test_preds.shape[0])
         utils.display_two_structures(test_preds[r], test_outputs[r], test_masks[r])
 
+# @tf.function
+# def distributed_train_epoch(strategy, model, training_records, validate_records):
+#     strategy.run(train, args=(model, training_records, validate_records))
+# @tf.function
+# def distributed_test_epoch(strategy, model, test_records, training=False):
+#     strategy.run(test, args=(model, test_records, training))
+
 def main(data_folder):
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    # tf.debugging.set_log_device_placement(True)
+
     training_records = utils.load_preprocessed_data(data_folder, 'training.tfr')
     validate_records = utils.load_preprocessed_data(data_folder, 'validation.tfr')
     test_records = utils.load_preprocessed_data(data_folder, 'testing.tfr')
 
-    model = ProteinStructurePredictor0()
-    model.optimizer = keras.optimizers.Adam(learning_rate=1e-2)
-    model.batch_size = 1024
-    epochs = 5
-    # Iterate over epochs.
-    for epoch in range(epochs):
-        epoch_training_records = training_records.shuffle(buffer_size=256).batch(model.batch_size, drop_remainder=False)
-        print("Start of epoch %d" % (epoch,))
 
-        # Iterate over the batches of the dataset.
-        train(model, epoch_training_records, validate_records)
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        model = ProteinStructurePredictor2()
+        model.optimizer = keras.optimizers.Adam(learning_rate=1e-2)
+        model.batch_size = 16   #1024
 
-        test(model, test_records, True)
+
+
+        epochs = 5
+        # Iterate over epochs.
+        for epoch in range(epochs):
+            epoch_training_records = training_records.shuffle(buffer_size=256).batch(model.batch_size, drop_remainder=False)
+            print("Start of epoch %d" % (epoch,))
+
+            # Iterate over the batches of the dataset.
+            # distributed_train_epoch(strategy, model, epoch_training_records, validate_records)
+            strategy.run(train, args=(model, epoch_training_records, validate_records))
+            # train(model, epoch_training_records, validate_records)
+            # distributed_test_epoch(strategy, model, test_records, True)
+            strategy.run(test, args=(model, test_records, True))
+            # test(model, test_records, True)
+
 
     test(model, test_records, True)
 
@@ -128,7 +230,7 @@ def main(data_folder):
 
 
 if __name__ == '__main__':
-    data_folder = 'd:/UC_Master/COSC440/assignment_all/final_project/'
+    data_folder = './final_project/'
 
 
     main(data_folder)

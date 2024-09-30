@@ -113,3 +113,14 @@ def display_two_structures(structure1, structure2, mask):
     axarr[0].imshow(dist1)
     axarr[1].imshow(dist2)
     plt.show()
+
+def display_two_loss(avg_loss_list, avg_mse_loss_list):
+    plt.figure(figsize=(10, 6))
+    plt.plot(avg_loss_list, label='Average Loss')
+    plt.plot(avg_mse_loss_list, label='Average MSE Loss')
+    plt.xlabel('batch')
+    plt.ylabel('Loss')
+    plt.title('Loss vs MSE Loss over batch')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
