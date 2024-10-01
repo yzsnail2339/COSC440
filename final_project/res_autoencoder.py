@@ -1,5 +1,5 @@
 from tensorflow.keras import layers, Model, Sequential
-
+import tensorflow as tf
 
 class BasicBlock(layers.Layer):
     expansion = 1
@@ -7,11 +7,11 @@ class BasicBlock(layers.Layer):
     def __init__(self, out_channel, strides=1, downsample=None, **kwargs):
         super(BasicBlock, self).__init__(**kwargs)
         self.conv1 = layers.Conv2D(out_channel, kernel_size=3, strides=strides,
-                                   padding="SAME", use_bias=False)
+                                   padding="same", use_bias=False)
         self.bn1 = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)
         # -----------------------------------------
         self.conv2 = layers.Conv2D(out_channel, kernel_size=3, strides=1,
-                                   padding="SAME", use_bias=False)
+                                   padding="same", use_bias=False)
         self.bn2 = layers.BatchNormalization(momentum=0.9, epsilon=1e-5)
         # -----------------------------------------
         self.downsample = downsample
@@ -34,6 +34,63 @@ class BasicBlock(layers.Layer):
         x = self.relu(x)
 
         return x
+    
+class Decoder(tf.keras.layers.Layer):
+    def __init__(self):
+        super(Decoder, self).__init__()
+        self.decoder_deconv_1 = tf.keras.layers.Conv2DTranspose(
+            filters=128,
+            kernel_size=3,
+            strides=2,
+            padding='same',
+            kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
+            activation=tf.keras.layers.LeakyReLU(alpha=0.2),
+            name="deconv1"
+        )
+        self.decoder_deconv_2 = tf.keras.layers.Conv2DTranspose(
+            filters=64,
+            kernel_size=3,
+            strides=2,
+            padding='same',
+            kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
+            activation=tf.keras.layers.LeakyReLU(alpha=0.2),
+            name="deconv2"
+        )
+        self.decoder_deconv_3 = tf.keras.layers.Conv2DTranspose(
+            filters=32,
+            kernel_size=3,
+            strides=2,
+            padding='same',
+            kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
+            activation=tf.keras.layers.LeakyReLU(alpha=0.2),
+            name="deconv3"
+        )
+        self.decoder_deconv_4 = tf.keras.layers.Conv2DTranspose(
+            filters=16,
+            kernel_size=3,
+            strides=2,
+            padding='same',
+            kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
+            activation=tf.keras.layers.LeakyReLU(alpha=0.2),
+            name="deconv4"
+        )
+        self.decoder_deconv_5 = tf.keras.layers.Conv2DTranspose(
+            filters=8,
+            kernel_size=3,
+            strides=2,
+            padding='same',
+            kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
+            activation=tf.keras.layers.LeakyReLU(alpha=0.2),
+            name="deconv5"
+        )
+
+    def call(self, encoder_output):
+      x = self.decoder_deconv_1(encoder_output)
+      x = self.decoder_deconv_2(x)
+      x = self.decoder_deconv_3(x)
+      x = self.decoder_deconv_4(x)
+      x = self.decoder_deconv_5(x)
+      return x
 
 
 class Bottleneck(layers.Layer):
@@ -48,20 +105,21 @@ class Bottleneck(layers.Layer):
     def __init__(self, out_channel, strides=1, downsample=None, **kwargs):
         super(Bottleneck, self).__init__(**kwargs)
         self.conv1 = layers.Conv2D(out_channel, kernel_size=1, use_bias=False, name="conv1")
-        self.bn1 = layers.BatchNormalization(momentum=0.9, epsilon=1e-5, name="conv1/BatchNorm")
+        self.bn1 = layers.BatchNormalization(momentum=0.9, epsilon=1e-5, name="conv1_BatchNorm")
         # -----------------------------------------
         self.conv2 = layers.Conv2D(out_channel, kernel_size=3, use_bias=False,
-                                   strides=strides, padding="SAME", name="conv2")
-        self.bn2 = layers.BatchNormalization(momentum=0.9, epsilon=1e-5, name="conv2/BatchNorm")
+                                   strides=strides, padding="same", name="conv2")
+        self.bn2 = layers.BatchNormalization(momentum=0.9, epsilon=1e-5, name="conv2_BatchNorm")
         # -----------------------------------------
         self.conv3 = layers.Conv2D(out_channel * self.expansion, kernel_size=1, use_bias=False, name="conv3")
-        self.bn3 = layers.BatchNormalization(momentum=0.9, epsilon=1e-5, name="conv3/BatchNorm")
+        self.bn3 = layers.BatchNormalization(momentum=0.9, epsilon=1e-5, name="conv3_BatchNorm")
         # -----------------------------------------
         self.relu = layers.ReLU()
         self.downsample = downsample
         self.add = layers.Add()
 
-    def call(self, inputs, training=False):
+
+    def call(self, inputs, training=True):
         identity = inputs
         if self.downsample is not None:
             identity = self.downsample(inputs)
@@ -69,14 +127,11 @@ class Bottleneck(layers.Layer):
         x = self.conv1(inputs)
         x = self.bn1(x, training=training)
         x = self.relu(x)
-        print(x.shape)
         x = self.conv2(x)
         x = self.bn2(x, training=training)
         x = self.relu(x)
-        print(x.shape)
         x = self.conv3(x)
         x = self.bn3(x, training=training)
-        print(x.shape)
         x = self.add([x, identity])
         x = self.relu(x)
 
@@ -101,42 +156,39 @@ def _make_layer(block, in_channel, channel, block_num, name, strides=1):
     return Sequential(layers_list, name=name)
 
 
-def _resnet(block, blocks_num, im_width=256, im_height=256, num_classes=1000, include_top=False):
+def _resnet(block, blocks_num, im_width=256, im_height=256):
     # tensorflow中的tensor通道排序是NHWC
     # (None, 224, 224, 3)
     # (None, 256, 256, 21)
-    input_image = layers.Input(shape=(im_height, im_width, 21), dtype="float32")
+    input_image = layers.Input(shape=(im_height, im_width, 11), dtype="float32")
     x = layers.Conv2D(filters=64, kernel_size=7, strides=2,
-                      padding="SAME", use_bias=False, name="conv1")(input_image)
-    x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5, name="conv1/BatchNorm")(x)
+                      padding="same", use_bias=False, name="conv1")(input_image)
+    x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5, name="conv1_BatchNorm")(x)
     x = layers.ReLU()(x)
-    x = layers.MaxPool2D(pool_size=3, strides=2, padding="SAME")(x)
+    x = layers.MaxPool2D(pool_size=3, strides=2, padding="same")(x)
 
-    x = _make_layer(block, x.shape[-1], 64, blocks_num[0], name="block1")(x)
-    x = _make_layer(block, x.shape[-1], 128, blocks_num[1], strides=2, name="block2")(x)
-    x = _make_layer(block, x.shape[-1], 256, blocks_num[2], strides=2, name="block3")(x)
-    x = _make_layer(block, x.shape[-1], 512, blocks_num[3], strides=2, name="block4")(x)
+    x = _make_layer(block, x.shape[-1], 32, blocks_num[0], name="block1")(x)
+    x = _make_layer(block, x.shape[-1], 64, blocks_num[1], strides=2, name="block2")(x)
+    x = _make_layer(block, x.shape[-1], 128, blocks_num[2], strides=2, name="block3")(x)
+    x = _make_layer(block, x.shape[-1], 256, blocks_num[3], strides=2, name="block4")(x)
+    x = Decoder()(x)
 
-    if include_top:
-        x = layers.GlobalAvgPool2D()(x)  # pool + flatten
-        x = layers.Dense(num_classes, name="logits")(x)
-        predict = layers.Softmax()(x)
-    else:
-        predict = x
+
+    predict = x
 
     model = Model(inputs=input_image, outputs=predict)
 
     return model
 
 
-def resnet34(im_width=224, im_height=224, num_classes=1000, include_top=True):
-    return _resnet(BasicBlock, [3, 4, 6, 3], im_width, im_height, num_classes, include_top)
+def resnet34(im_width=256, im_height=256):
+    return _resnet(BasicBlock, [3, 4, 6, 3], im_width, im_height)
 
 
-def resnet50(im_width=256, im_height=256, num_classes=1000, include_top=False):
-    return _resnet(Bottleneck, [3, 4, 6, 3], im_width, im_height, num_classes, include_top)
+def resnet50(im_width=256, im_height=256):
+    return _resnet(Bottleneck, [3, 4, 6, 3], im_width, im_height)
 
 
-def resnet101(im_width=224, im_height=224, num_classes=1000, include_top=True):
-    return _resnet(Bottleneck, [3, 4, 23, 3], im_width, im_height, num_classes, include_top)
+def resnet101(im_width=224, im_height=224):
+    return _resnet(Bottleneck, [3, 4, 23, 3], im_width, im_height)
 
