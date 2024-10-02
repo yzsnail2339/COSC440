@@ -176,7 +176,7 @@ def _resnet(block, blocks_num, im_width=256, im_height=256):
 
     predict = x
 
-    model = Model(inputs=input_image, outputs=predict)
+    model = Model(inputs=input_image, outputs=predict, name="ResNet_autoencoder")
 
     return model
 

@@ -95,7 +95,8 @@ def load_preprocessed_data(data_folder, filename):
     raw_dataset = tf.data.TFRecordDataset(file_path)
     decoded_dataset = raw_dataset.map(decode_preprocessed_fn)
     #debug info
-    print("Debug info, shape of one data record:")
+    # data_size = sum(1 for _ in decoded_dataset)
+    # print(f"Actual data size: {data_size}")
     for record in decoded_dataset.take(1):
         for key, value in record.items():
             print(key,"shape=",value.shape)

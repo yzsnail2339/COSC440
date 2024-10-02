@@ -201,7 +201,8 @@ def train(model, train_dataset, validate_dataset=None, train_loss=utils.mse_loss
             validate_loss = 0.
 
             validate_batches = 0.
-            for batch in validate_dataset.batch(1024):
+            #be care of the validate_dataset.batch(1024)
+            for batch in validate_dataset.batch(model.batch_size):
                 validate_inputs, validate_outputs, validate_masks = get_input_output_masks(batch)
                 validate_preds = model.call(validate_inputs, validate_masks)
 
@@ -212,6 +213,7 @@ def train(model, train_dataset, validate_dataset=None, train_loss=utils.mse_loss
             validate_loss = float('NaN')
         print(
             f'train loss {avg_loss:.3f} train mse loss {avg_mse_loss:.3f} validate mse loss {validate_loss:.3f}')
+        # print(f'train loss {avg_loss:.3f} train mse loss {avg_mse_loss:.3f}')
     first = True
     for batch in train_dataset:
         inputs, labels, masks = get_input_output_masks(batch)
@@ -229,36 +231,35 @@ def train(model, train_dataset, validate_dataset=None, train_loss=utils.mse_loss
         avg_loss_list.append(avg_loss)
         avg_mse_loss_list.append(avg_mse_loss)
         print_loss()
-
         if first:
             print(model.summary())
+            print(model.resnet.summary()) 
+            print(model.resnet.get_layer('block1').summary())
             first = False
-    # utils.display_two_loss(avg_loss_list, avg_mse_loss_list)
+    utils.display_two_loss(avg_loss_list, avg_mse_loss_list)
 
 def test(model, test_records, viz=False):
-    for batch in test_records.batch(1024):
+    for batch in test_records.batch(model.batch_size):
         test_inputs, test_outputs, test_masks = get_input_output_masks(batch)
         test_preds = model.call(test_inputs, test_masks)
         test_loss = tf.reduce_sum(utils.mse_loss(test_preds, test_outputs, test_masks)) / get_n_records(batch)
         print(f'test mse loss {test_loss:.3f}')
 
     if viz:
-        # print(model.summary())
+        print(model.summary())
         r = random.randint(0, test_preds.shape[0])
         utils.display_two_structures(test_preds[r], test_outputs[r], test_masks[r])
+        viz = False
 
-# @tf.function
-# def distributed_train_epoch(strategy, model, training_records, validate_records):
-#     strategy.run(train, args=(model, training_records, validate_records))
-# @tf.function
-# def distributed_test_epoch(strategy, model, test_records, training=False):
-#     strategy.run(test, args=(model, test_records, training))
+
+# 递归显示整个主模型的结构
 
 def main(data_folder):
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    if gpus:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
+    # gpus = tf.config.experimental.list_physical_devices('GPU')
+    # if gpus:
+    #     for gpu in gpus:
+    #         tf.config.experimental.set_memory_growth(gpu, True)
+
     # tf.debugging.set_log_device_placement(True)
 
     training_records = utils.load_preprocessed_data(data_folder, 'training.tfr')
@@ -266,27 +267,26 @@ def main(data_folder):
     test_records = utils.load_preprocessed_data(data_folder, 'testing.tfr')
 
 
-    strategy = tf.distribute.MirroredStrategy()
-    with strategy.scope():
-        model = ProteinStructurePredictor2()
-        model.optimizer = keras.optimizers.Adam(learning_rate=1e-2)
-        model.batch_size = 1   #1024
+    # strategy = tf.distribute.MirroredStrategy()
+    # with strategy.scope():
+    model = ProteinStructurePredictor5()
+    model.optimizer = keras.optimizers.Adam(learning_rate=1e-2)
+    model.batch_size = 32   #1024
 
 
 
-        epochs = 1
-        # Iterate over epochs.
-        for epoch in range(epochs):
-            epoch_training_records = training_records.shuffle(buffer_size=256).batch(model.batch_size, drop_remainder=False)
-            print("Start of epoch %d" % (epoch,))
 
-            # Iterate over the batches of the dataset.
-            # distributed_train_epoch(strategy, model, epoch_training_records, validate_records)
-            strategy.run(train, args=(model, epoch_training_records, validate_records))
-            # train(model, epoch_training_records, validate_records)
-            # distributed_test_epoch(strategy, model, test_records, True)
-            strategy.run(test, args=(model, test_records, True))
-            # test(model, test_records, True)
+    epochs = 1
+    # Iterate over epochs.
+    for epoch in range(epochs):
+        epoch_training_records = training_records.shuffle(buffer_size=256).batch(model.batch_size, drop_remainder=False)
+        print("Start of epoch %d" % (epoch,))
+
+        # Iterate over the batches of the dataset.
+        # strategy.run(train, args=(model, epoch_training_records, validate_records))
+        train(model, epoch_training_records, validate_records)
+        # strategy.run(test, args=(model, test_records, True))
+        test(model, test_records, True)
 
 
     test(model, test_records, True)
