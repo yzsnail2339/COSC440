@@ -157,15 +157,17 @@ class ProteinStructurePredictor5(keras.Model):
         self.attention = keras.layers.MultiHeadAttention(num_heads=4, key_dim=16)
         self.dense = keras.layers.Dense(64, activation='gelu')
         self.resnet = res.resnet50()
-
+        self.add = keras.layers.Add()
     #@tf.function
     def call(self, inputs, mask=None):
         primary_one_hot = inputs['primary_onehot']
         attention_output = self.attention(primary_one_hot, primary_one_hot, primary_one_hot)
-        x = primary_one_hot + attention_output
+        # x = primary_one_hot + attention_output
+        x = self.add([primary_one_hot , attention_output])
         x = self.dense(x)
         # outer sum to get a NUM_RESIDUES x NUM_RESIDUES x embedding size
-        x = tf.expand_dims(x, -2) + tf.expand_dims(x, -3)
+        x = self.add([tf.expand_dims(x, -2) , tf.expand_dims(x, -3)])
+        # x = tf.expand_dims(x, -2) + tf.expand_dims(x, -3)
         # filter the initial representation into an embedded representation
         x = self.layer0(x)
         # add positional distance information
@@ -173,6 +175,7 @@ class ProteinStructurePredictor5(keras.Model):
         distances = tf.abs(tf.expand_dims(r, -1) - tf.expand_dims(r, -2))
         distances_bc = tf.expand_dims(
             tf.broadcast_to(distances, [tf.shape(primary_one_hot)[0], utils.NUM_RESIDUES, utils.NUM_RESIDUES]), -1)
+        distances_bc = distances_bc * tf.expand_dims(mask, axis=-1)
         x = tf.concat([x, x * distances_bc, distances_bc], axis=-1)
         x = self.resnet(x)
         x = self.layer1(x)
@@ -271,12 +274,12 @@ def main(data_folder):
     # with strategy.scope():
     model = ProteinStructurePredictor5()
     model.optimizer = keras.optimizers.Adam(learning_rate=1e-2)
-    model.batch_size = 32   #1024
+    model.batch_size = 16  #1024
 
 
 
 
-    epochs = 1
+    epochs = 5
     # Iterate over epochs.
     for epoch in range(epochs):
         epoch_training_records = training_records.shuffle(buffer_size=256).batch(model.batch_size, drop_remainder=False)

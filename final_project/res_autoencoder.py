@@ -18,7 +18,7 @@ class BasicBlock(layers.Layer):
         self.relu = layers.ReLU()
         self.add = layers.Add()
 
-    def call(self, inputs, training=False):
+    def call(self, inputs, training=True):
         identity = inputs
         if self.downsample is not None:
             identity = self.downsample(inputs)
@@ -118,7 +118,6 @@ class Bottleneck(layers.Layer):
         self.downsample = downsample
         self.add = layers.Add()
 
-
     def call(self, inputs, training=True):
         identity = inputs
         if self.downsample is not None:
@@ -143,8 +142,8 @@ def _make_layer(block, in_channel, channel, block_num, name, strides=1):
     if strides != 1 or in_channel != channel * block.expansion:
         downsample = Sequential([
             layers.Conv2D(channel * block.expansion, kernel_size=1, strides=strides,
-                          use_bias=False, name="conv1"),
-            layers.BatchNormalization(momentum=0.9, epsilon=1.001e-5, name="BatchNorm")
+                          use_bias=False, name="conv1_d"),
+            layers.BatchNormalization(momentum=0.9, epsilon=1.001e-5, name="BatchNorm_d")
         ], name="shortcut")
 
     layers_list = []
