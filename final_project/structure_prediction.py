@@ -230,7 +230,8 @@ def train(model, train_dataset, validate_dataset=None, train_loss=utils.mse_loss
             batch_loss = tf.reduce_sum(l)
             gradients = tape.gradient(batch_loss, model.trainable_weights)
             avg_loss = batch_loss / get_n_records(batch)
-            avg_mse_loss = tf.reduce_sum(utils.mse_loss(outputs, labels, masks)) / get_n_records(batch)
+            # avg_mse_loss = tf.reduce_sum(utils.mse_loss(outputs, labels, masks)) / get_n_records(batch)
+            avg_mse_loss = tf.reduce_mean(avg_mse_loss_tensor)
 
         model.optimizer.apply_gradients(zip(gradients, model.trainable_weights))
         avg_loss_list.append(avg_loss)
