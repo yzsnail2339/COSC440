@@ -75,7 +75,7 @@ class Decoder(tf.keras.layers.Layer):
             name="deconv4"
         )
         self.decoder_deconv_5 = tf.keras.layers.Conv2DTranspose(
-            filters=8,
+            filters=1,
             kernel_size=3,
             strides=2,
             padding='same',
@@ -170,10 +170,8 @@ def _resnet(block, blocks_num, im_width=256, im_height=256):
     x = _make_layer(block, x.shape[-1], 64, blocks_num[1], strides=2, name="block2")(x)
     x = _make_layer(block, x.shape[-1], 128, blocks_num[2], strides=2, name="block3")(x)
     x = _make_layer(block, x.shape[-1], 256, blocks_num[3], strides=2, name="block4")(x)
-    x = Decoder()(x)
+    predict = Decoder()(x)
 
-
-    predict = x
 
     model = Model(inputs=input_image, outputs=predict, name="ResNet_autoencoder")
 

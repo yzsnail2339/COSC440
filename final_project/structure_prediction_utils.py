@@ -111,8 +111,11 @@ def display_two_structures(structure1, structure2, mask):
     f, axarr = plt.subplots(1, 2)
     axarr[0].set_title('predicted')
     axarr[1].set_title('true')
-    axarr[0].imshow(dist1)
-    axarr[1].imshow(dist2)
+    im1 = axarr[0].imshow(dist1)
+    im2 = axarr[1].imshow(dist2)
+
+    f.colorbar(im1, ax=axarr[0])
+    f.colorbar(im2, ax=axarr[1])
     plt.show()
 
 def display_two_loss(avg_loss_list, avg_mse_loss_list):

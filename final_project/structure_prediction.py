@@ -153,9 +153,10 @@ class ProteinStructurePredictor5(keras.Model):
     def __init__(self):
         super().__init__()
         self.layer0 = keras.layers.Conv2D(5, 5, activation='gelu', padding="same")
-        self.layer1 = keras.layers.Conv2D(1, 1, activation='gelu', padding="same")
+        # self.layer1 = keras.layers.Conv2D(1, 1, activation='gelu', padding="same")
         self.attention = keras.layers.MultiHeadAttention(num_heads=4, key_dim=16)
-        self.dense = keras.layers.Dense(64, activation='gelu')
+        self.dense1 = keras.layers.Dense(64, activation='gelu')
+        # self.dense2 = keras.layers.Dense(10, activation='gelu')
         self.resnet = res.resnet50()
         self.add = keras.layers.Add()
     #@tf.function
@@ -164,7 +165,7 @@ class ProteinStructurePredictor5(keras.Model):
         attention_output = self.attention(primary_one_hot, primary_one_hot, primary_one_hot)
         # x = primary_one_hot + attention_output
         x = self.add([primary_one_hot , attention_output])
-        x = self.dense(x)
+        x = self.dense1(x)
         # outer sum to get a NUM_RESIDUES x NUM_RESIDUES x embedding size
         x = self.add([tf.expand_dims(x, -2) , tf.expand_dims(x, -3)])
         # x = tf.expand_dims(x, -2) + tf.expand_dims(x, -3)
@@ -178,7 +179,8 @@ class ProteinStructurePredictor5(keras.Model):
         distances_bc = distances_bc * tf.expand_dims(mask, axis=-1)
         x = tf.concat([x, x * distances_bc, distances_bc], axis=-1)
         x = self.resnet(x)
-        x = self.layer1(x)
+        # x = self.dense2(x)
+        # x = self.layer1(x)
         return x
 
 def get_n_records(batch):
