@@ -35,63 +35,146 @@ class BasicBlock(layers.Layer):
 
         return x
     
+# class Decoder(tf.keras.layers.Layer):
+#     def __init__(self):
+#         super(Decoder, self).__init__()
+#         self.decoder_deconv_1 = tf.keras.layers.Conv2DTranspose(
+#             filters=128,
+#             kernel_size=3,
+#             strides=2,
+#             padding='same',
+#             kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
+#             activation=tf.keras.layers.LeakyReLU(alpha=0.2),
+#             name="deconv1"
+#         )
+#         self.decoder_deconv_2 = tf.keras.layers.Conv2DTranspose(
+#             filters=64,
+#             kernel_size=3,
+#             strides=2,
+#             padding='same',
+#             kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
+#             activation=tf.keras.layers.LeakyReLU(alpha=0.2),
+#             name="deconv2"
+#         )
+#         self.decoder_deconv_3 = tf.keras.layers.Conv2DTranspose(
+#             filters=32,
+#             kernel_size=3,
+#             strides=2,
+#             padding='same',
+#             kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
+#             activation=tf.keras.layers.LeakyReLU(alpha=0.2),
+#             name="deconv3"
+#         )
+#         self.decoder_deconv_4 = tf.keras.layers.Conv2DTranspose(
+#             filters=16,
+#             kernel_size=3,
+#             strides=2,
+#             padding='same',
+#             kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
+#             activation=tf.keras.layers.LeakyReLU(alpha=0.2),
+#             name="deconv4"
+#         )
+#         self.decoder_deconv_5 = tf.keras.layers.Conv2DTranspose(
+#             filters=1,
+#             kernel_size=3,
+#             strides=2,
+#             padding='same',
+#             kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
+#             activation=tf.keras.layers.LeakyReLU(alpha=0.2),
+#             name="deconv5"
+#         )
+
+#     def call(self, encoder_output):
+#       x = self.decoder_deconv_1(encoder_output)
+#       x = self.decoder_deconv_2(x)
+#       x = self.decoder_deconv_3(x)
+#       x = self.decoder_deconv_4(x)
+#       x = self.decoder_deconv_5(x)
+#       return x
+
 class Decoder(tf.keras.layers.Layer):
     def __init__(self):
         super(Decoder, self).__init__()
         self.decoder_deconv_1 = tf.keras.layers.Conv2DTranspose(
+            filters=256,
+            kernel_size=3,
+            strides=2,
+            padding='same',
+            kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
+            use_bias=False, 
+            name="deconv1"
+        )
+        self.decoder_bn1 = tf.keras.layers.BatchNormalization(momentum=0.9, epsilon=1e-5)
+        self.decoder_activation1 = tf.keras.layers.LeakyReLU(alpha=0.2)
+
+        self.decoder_deconv_2 = tf.keras.layers.Conv2DTranspose(
             filters=128,
             kernel_size=3,
             strides=2,
             padding='same',
             kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
-            activation=tf.keras.layers.LeakyReLU(alpha=0.2),
-            name="deconv1"
+            use_bias=False,
+            name="deconv2"
         )
-        self.decoder_deconv_2 = tf.keras.layers.Conv2DTranspose(
+        self.decoder_bn2 = tf.keras.layers.BatchNormalization(momentum=0.9, epsilon=1e-5)
+        self.decoder_activation2 = tf.keras.layers.LeakyReLU(alpha=0.2)
+
+        self.decoder_deconv_3 = tf.keras.layers.Conv2DTranspose(
             filters=64,
             kernel_size=3,
             strides=2,
             padding='same',
             kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
-            activation=tf.keras.layers.LeakyReLU(alpha=0.2),
-            name="deconv2"
+            use_bias=False,
+            name="deconv3"
         )
-        self.decoder_deconv_3 = tf.keras.layers.Conv2DTranspose(
+        self.decoder_bn3 = tf.keras.layers.BatchNormalization(momentum=0.9, epsilon=1e-5)
+        self.decoder_activation3 = tf.keras.layers.LeakyReLU(alpha=0.2)
+
+        self.decoder_deconv_4 = tf.keras.layers.Conv2DTranspose(
             filters=32,
             kernel_size=3,
             strides=2,
             padding='same',
             kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
-            activation=tf.keras.layers.LeakyReLU(alpha=0.2),
-            name="deconv3"
-        )
-        self.decoder_deconv_4 = tf.keras.layers.Conv2DTranspose(
-            filters=16,
-            kernel_size=3,
-            strides=2,
-            padding='same',
-            kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
-            activation=tf.keras.layers.LeakyReLU(alpha=0.2),
+            use_bias=False,
             name="deconv4"
         )
+        self.decoder_bn4 = tf.keras.layers.BatchNormalization(momentum=0.9, epsilon=1e-5)
+        self.decoder_activation4 = tf.keras.layers.LeakyReLU(alpha=0.2)
+
         self.decoder_deconv_5 = tf.keras.layers.Conv2DTranspose(
             filters=1,
             kernel_size=3,
             strides=2,
             padding='same',
             kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.1),
-            activation=tf.keras.layers.LeakyReLU(alpha=0.2),
+            use_bias=False,
             name="deconv5"
         )
+        self.decoder_activation5 = tf.keras.layers.LeakyReLU(alpha=0.2)
 
-    def call(self, encoder_output):
-      x = self.decoder_deconv_1(encoder_output)
-      x = self.decoder_deconv_2(x)
-      x = self.decoder_deconv_3(x)
-      x = self.decoder_deconv_4(x)
-      x = self.decoder_deconv_5(x)
-      return x
+    def call(self, encoder_output, training=True):
+        x = self.decoder_deconv_1(encoder_output)
+        x = self.decoder_bn1(x, training=training)
+        x = self.decoder_activation1(x)
 
+        x = self.decoder_deconv_2(x)
+        x = self.decoder_bn2(x, training=training)
+        x = self.decoder_activation2(x)
+
+        x = self.decoder_deconv_3(x)
+        x = self.decoder_bn3(x, training=training)
+        x = self.decoder_activation3(x)
+
+        x = self.decoder_deconv_4(x)
+        x = self.decoder_bn4(x, training=training)
+        x = self.decoder_activation4(x)
+
+        x = self.decoder_deconv_5(x)
+        x = self.decoder_activation5(x)
+
+        return x
 
 class Bottleneck(layers.Layer):
     """
@@ -159,17 +242,22 @@ def _resnet(block, blocks_num, im_width=256, im_height=256):
     # tensorflow中的tensor通道排序是NHWC
     # (None, 224, 224, 3)
     # (None, 256, 256, 21)
-    input_image = layers.Input(shape=(im_height, im_width, 11), dtype="float32")
+    input_image = layers.Input(shape=(im_height, im_width, 15), dtype="float32")
     x = layers.Conv2D(filters=64, kernel_size=7, strides=2,
                       padding="same", use_bias=False, name="conv1")(input_image)
     x = layers.BatchNormalization(momentum=0.9, epsilon=1e-5, name="conv1_BatchNorm")(x)
     x = layers.ReLU()(x)
     x = layers.MaxPool2D(pool_size=3, strides=2, padding="same")(x)
 
-    x = _make_layer(block, x.shape[-1], 32, blocks_num[0], name="block1")(x)
-    x = _make_layer(block, x.shape[-1], 64, blocks_num[1], strides=2, name="block2")(x)
-    x = _make_layer(block, x.shape[-1], 128, blocks_num[2], strides=2, name="block3")(x)
-    x = _make_layer(block, x.shape[-1], 256, blocks_num[3], strides=2, name="block4")(x)
+    # x = _make_layer(block, x.shape[-1], 32, blocks_num[0], name="block1")(x)
+    # x = _make_layer(block, x.shape[-1], 64, blocks_num[1], strides=2, name="block2")(x)
+    # x = _make_layer(block, x.shape[-1], 128, blocks_num[2], strides=2, name="block3")(x)
+    # x = _make_layer(block, x.shape[-1], 256, blocks_num[3], strides=2, name="block4")(x)
+    x = _make_layer(block, x.shape[-1], 64, blocks_num[0], name="block1")(x)
+    x = _make_layer(block, x.shape[-1], 128, blocks_num[1], strides=2, name="block2")(x)
+    x = _make_layer(block, x.shape[-1], 256, blocks_num[2], strides=2, name="block3")(x)
+    x = _make_layer(block, x.shape[-1], 512, blocks_num[3], strides=2, name="block4")(x)
+
     predict = Decoder()(x)
 
 

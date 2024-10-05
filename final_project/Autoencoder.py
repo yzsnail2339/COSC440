@@ -56,7 +56,7 @@ class Decoder(tf.keras.layers.Layer):
             activation=tf.keras.layers.LeakyReLU(alpha=0.2)
         )
         self.decoder_deconv_3 = tf.keras.layers.Conv2DTranspose(
-            filters=3,
+            filters=1,
             kernel_size=3,
             strides=2,
             padding='same',

@@ -152,12 +152,12 @@ class ProteinStructurePredictor3(keras.Model):
 class ProteinStructurePredictor5(keras.Model):
     def __init__(self):
         super().__init__()
-        self.layer0 = keras.layers.Conv2D(5, 5, activation='gelu', padding="same")
+        self.layer0 = keras.layers.Conv2D(7, 5, activation='gelu', padding="same")
         # self.layer1 = keras.layers.Conv2D(1, 1, activation='gelu', padding="same")
         self.attention = keras.layers.MultiHeadAttention(num_heads=4, key_dim=16)
         self.dense1 = keras.layers.Dense(64, activation='gelu')
         # self.dense2 = keras.layers.Dense(10, activation='gelu')
-        self.resnet = res.resnet50()
+        self.resnet = res.resnet34()
         self.add = keras.layers.Add()
     #@tf.function
     def call(self, inputs, mask=None):
@@ -171,14 +171,18 @@ class ProteinStructurePredictor5(keras.Model):
         # x = tf.expand_dims(x, -2) + tf.expand_dims(x, -3)
         # filter the initial representation into an embedded representation
         x = self.layer0(x)
+
         # add positional distance information
         r = tf.range(0, utils.NUM_RESIDUES, dtype=tf.float32)
         distances = tf.abs(tf.expand_dims(r, -1) - tf.expand_dims(r, -2))
         distances_bc = tf.expand_dims(
             tf.broadcast_to(distances, [tf.shape(primary_one_hot)[0], utils.NUM_RESIDUES, utils.NUM_RESIDUES]), -1)
         distances_bc = distances_bc * tf.expand_dims(mask, axis=-1)
+
+
         x = tf.concat([x, x * distances_bc, distances_bc], axis=-1)
         x = self.resnet(x)
+        x = x * tf.expand_dims(mask, axis=-1)
         # x = self.dense2(x)
         # x = self.layer1(x)
         return x
@@ -191,7 +195,7 @@ def get_input_output_masks(batch):
     masks = batch['distance_mask']
     return inputs, outputs, masks
     
-def train(model, train_dataset, validate_dataset=None, train_loss=utils.mse_loss):
+def train(model, train_dataset, validate_dataset=None, train_loss=utils.mse_point_loss):
     '''
     Trains the model
     '''
@@ -200,6 +204,7 @@ def train(model, train_dataset, validate_dataset=None, train_loss=utils.mse_loss
     avg_mse_loss = 0.
     avg_loss_list = []
     avg_mse_loss_list = []
+    validate_loss_list = []
 
     def print_loss():
         if validate_dataset is not None:
@@ -216,6 +221,9 @@ def train(model, train_dataset, validate_dataset=None, train_loss=utils.mse_loss
             validate_loss /= validate_batches
         else:
             validate_loss = float('NaN')
+        avg_loss_list.append(avg_loss)
+        avg_mse_loss_list.append(avg_mse_loss)
+        validate_loss_list.append(validate_loss)
         print(
             f'train loss {avg_loss:.3f} train mse loss {avg_mse_loss:.3f} validate mse loss {validate_loss:.3f}')
         # print(f'train loss {avg_loss:.3f} train mse loss {avg_mse_loss:.3f}')
@@ -228,21 +236,20 @@ def train(model, train_dataset, validate_dataset=None, train_loss=utils.mse_loss
 
             l = train_loss(outputs, labels, masks)
             batch_loss = tf.reduce_sum(l)
-            gradients = tape.gradient(batch_loss, model.trainable_weights)
-            avg_loss = batch_loss / get_n_records(batch)
-            # avg_mse_loss = tf.reduce_sum(utils.mse_loss(outputs, labels, masks)) / get_n_records(batch)
-            avg_mse_loss = tf.reduce_mean(avg_mse_loss_tensor)
-
+        gradients = tape.gradient(batch_loss, model.trainable_weights)
+        avg_loss = batch_loss / get_n_records(batch)
+        avg_mse_loss = tf.reduce_sum(utils.mse_loss(outputs, labels, masks)) / get_n_records(batch) 
+        # avg_mse_loss = tf.reduce_mean(avg_mse_loss_list)
+        
+        gradients, _ = tf.clip_by_global_norm(gradients, clip_norm=1.0)  #梯度裁剪
         model.optimizer.apply_gradients(zip(gradients, model.trainable_weights))
-        avg_loss_list.append(avg_loss)
-        avg_mse_loss_list.append(avg_mse_loss)
         print_loss()
         if first:
-            print(model.summary())
-            print(model.resnet.summary()) 
-            print(model.resnet.get_layer('block1').summary())
+            model.summary()
+            model.resnet.summary()
+            model.resnet.get_layer('block1').summary()
             first = False
-    utils.display_two_loss(avg_loss_list, avg_mse_loss_list)
+    utils.display_three_loss(avg_loss_list, avg_mse_loss_list, validate_loss_list)
 
 def test(model, test_records, viz=False):
     for batch in test_records.batch(model.batch_size):
@@ -252,8 +259,8 @@ def test(model, test_records, viz=False):
         print(f'test mse loss {test_loss:.3f}')
 
     if viz:
-        print(model.summary())
-        r = random.randint(0, test_preds.shape[0])
+        model.summary()
+        r = random.randint(0, test_preds.shape[0] -1)
         utils.display_two_structures(test_preds[r], test_outputs[r], test_masks[r])
         viz = False
 
@@ -277,12 +284,12 @@ def main(data_folder):
     # with strategy.scope():
     model = ProteinStructurePredictor5()
     model.optimizer = keras.optimizers.Adam(learning_rate=1e-2)
-    model.batch_size = 16  #1024
+    model.batch_size = 32 #1024
 
 
 
 
-    epochs = 5
+    epochs = 10
     # Iterate over epochs.
     for epoch in range(epochs):
         epoch_training_records = training_records.shuffle(buffer_size=256).batch(model.batch_size, drop_remainder=False)

@@ -55,6 +55,11 @@ def mse_loss(predicted_distance_matrix, true_distance_matrix, mask):
     diff *= mask
     return tf.reduce_sum(diff, axis=(-1, -2))
 
+def mse_point_loss(predicted_distance_matrix, true_distance_matrix, mask):
+    diff = tf.abs(tf.squeeze(predicted_distance_matrix)-true_distance_matrix)
+    diff *= mask
+    return tf.reduce_sum(diff, axis=(-1, -2)) / tf.reduce_sum(mask)
+
 def per_residue_distance(points):
     return tf.sqrt(1e-10 + tf.reduce_sum((tf.expand_dims(points, -2)-
         tf.expand_dims(points, -3)) ** 2, axis=-1))
@@ -108,7 +113,7 @@ def display_two_structures(structure1, structure2, mask):
     dist1 = tf.squeeze(structure1) * mask
     dist2 = tf.squeeze(structure2) * mask
 
-    f, axarr = plt.subplots(1, 2)
+    f, axarr = plt.subplots(1, 2, figsize=(16, 8))
     axarr[0].set_title('predicted')
     axarr[1].set_title('true')
     im1 = axarr[0].imshow(dist1)
@@ -118,13 +123,14 @@ def display_two_structures(structure1, structure2, mask):
     f.colorbar(im2, ax=axarr[1])
     plt.show()
 
-def display_two_loss(avg_loss_list, avg_mse_loss_list):
-    plt.figure(figsize=(10, 6))
+def display_three_loss(avg_loss_list, avg_mse_loss_list, validate_loss_list):
+    plt.figure(figsize=(15, 8))
     plt.plot(avg_loss_list, label='Average Loss')
     plt.plot(avg_mse_loss_list, label='Average MSE Loss')
+    plt.plot(validate_loss_list, label='Validate Loss')
     plt.xlabel('batch')
     plt.ylabel('Loss')
-    plt.title('Loss vs MSE Loss over batch')
+    plt.title('Loss vs MSE Loss  vs Val loss over batch')
     plt.legend()
     plt.grid(True)
     plt.show()
