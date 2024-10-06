@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 *.tfr
 model/
+each_epochs_loss/
+model_result/
+model_keras_save/

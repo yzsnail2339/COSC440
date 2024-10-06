@@ -124,13 +124,40 @@ def display_two_structures(structure1, structure2, mask):
     plt.show()
 
 def display_three_loss(avg_loss_list, avg_mse_loss_list, validate_loss_list):
-    plt.figure(figsize=(15, 8))
-    plt.plot(avg_loss_list, label='Average Loss')
-    plt.plot(avg_mse_loss_list, label='Average MSE Loss')
-    plt.plot(validate_loss_list, label='Validate Loss')
-    plt.xlabel('batch')
-    plt.ylabel('Loss')
-    plt.title('Loss vs MSE Loss  vs Val loss over batch')
-    plt.legend()
-    plt.grid(True)
+    # 创建一个包含3个子图的绘图
+    fig, axs = plt.subplots(3, 1, figsize=(15, 12), sharex=True)
+
+    # 绘制 Average Loss
+    axs[0].plot(avg_loss_list, color='b', label='Average Loss')
+    axs[0].set_ylabel('Average Loss')
+    axs[0].legend()
+    axs[0].grid(True)
+
+    # 绘制 Average MSE Loss
+    axs[1].plot(avg_mse_loss_list, color='r', label='Average MSE Loss')
+    axs[1].set_ylabel('Average MSE Loss')
+    axs[1].legend()
+    axs[1].grid(True)
+
+    # 绘制 Validate Loss
+    axs[2].plot(validate_loss_list, color='g', label='Validate Loss')
+    axs[2].set_xlabel('Batch')
+    axs[2].set_ylabel('Validation Loss')
+    axs[2].legend()
+    axs[2].grid(True)
+
+    # 设置总的标题
+    fig.suptitle('Loss vs MSE Loss vs Validation Loss over Batch', fontsize=16)
     plt.show()
+
+
+def display_test_loss_epochs(test_loss_epochs):
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(1, len(test_loss_epochs) + 1), test_loss_epochs, marker='o', linestyle='-', color='b', label='Test Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.title('Test Loss over Epochs')
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
