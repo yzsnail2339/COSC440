@@ -205,7 +205,7 @@ class VisionTransformer(Model):
             self.pre_logits = layers.Activation("linear")
 
         self.head = layers.Dense(num_classes, name="head", kernel_initializer=initializers.Zeros())
-        self.headp = layers.Dense(256, name="headp", kernel_initializer=initializers.Zeros())
+
     def call(self, inputs, training=None):
         # [B, H, W, C] -> [B, num_patches, embed_dim]
         x = self.patch_embed(inputs)  # [B, 196, 768]
@@ -215,10 +215,10 @@ class VisionTransformer(Model):
         for block in self.blocks:
             x = block(x, training=training)
 
-        # x = self.norm(x)
-        # x = self.pre_logits(x[:, 0])
-        # x = self.head(x)
-        x = self.headp(x[:, :256, :])
+        x = self.norm(x)
+        x = self.pre_logits(x[:, 0])
+        x = self.head(x)
+
         return x
 
 
@@ -227,10 +227,10 @@ def vit_base_patch16_224_in21k(num_classes: int = 21843, has_logits: bool = True
     ViT-Base model (ViT-B/16) from original paper (https://arxiv.org/abs/2010.11929).
     ImageNet-21k weights @ 224x224, source https://github.com/google-research/vision_transformer.
     """
-    model = VisionTransformer(img_size=256,
+    model = VisionTransformer(img_size=224,
                               patch_size=16,
                               embed_dim=768,
-                              depth=6,
+                              depth=12,
                               num_heads=12,
                               representation_size=768 if has_logits else None,
                               num_classes=num_classes,

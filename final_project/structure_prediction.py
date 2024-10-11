@@ -8,6 +8,7 @@ import random
 import structure_prediction_utils as utils
 from Autoencoder import AutoEncoder
 import res_autoencoder as res
+import vit_model as vit
 from tensorflow import keras
 import csv
 import time
@@ -205,6 +206,7 @@ class ProteinStructurePredictor6(keras.Model):
         self.dense1 = keras.layers.Dense(64, activation='gelu')
         # self.dense2 = keras.layers.Dense(10, activation='gelu')
         self.resnet = res.resnet34()
+        self.vit = vit.vit_base_patch16_224_in21k()
         self.add = keras.layers.Add()
     #@tf.function
     def call(self, inputs, mask=None):
@@ -227,11 +229,12 @@ class ProteinStructurePredictor6(keras.Model):
 
         x = tf.concat([x, x * distances_bc, distances_bc], axis=-1)
         x = self.resnet(x)
-        x = x * tf.expand_dims(mask, axis=-1)
+        # x = x * tf.expand_dims(mask, axis=-1)
+        x = self.vit(x)
         # x = self.dense2(x)
         # x = self.layer1(x)
         return x
-
+  
 def get_n_records(batch):
     return batch['primary_onehot'].shape[0]
 def get_input_output_masks(batch):
@@ -352,7 +355,7 @@ def test(model, test_records, viz=False):
         r = random.randint(0, test_preds.shape[0] -1)
         utils.display_two_structures(test_preds[r], test_outputs[r], test_masks[r])
         viz = False
-    test_loss_epochs.append(test_loss_mean, time_batch)
+    test_loss_epochs.append(test_loss_mean)
 
 
 # 递归显示整个主模型的结构
@@ -372,9 +375,9 @@ def main(data_folder):
 
     # strategy = tf.distribute.MirroredStrategy()
     # with strategy.scope():
-    model = ProteinStructurePredictor5()
+    model = ProteinStructurePredictor6()
     model.optimizer = keras.optimizers.Adam(learning_rate=1e-2)
-    model.batch_size = 32 #1024
+    model.batch_size = 8 #1024
 
 
 
