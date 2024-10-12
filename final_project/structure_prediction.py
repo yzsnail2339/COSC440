@@ -18,7 +18,36 @@ avg_mse_loss_list_epochs = []
 validate_loss_list_epochs = []
 test_loss_epochs = []
 
+class ProteinStructurePredictor00(keras.Model):
+    def __init__(self):
+        super().__init__()
+        # self.layer0 = keras.layers.Conv2D(5, 5, activation='gelu', padding="same")
+        self.layer1 = keras.layers.Conv2D(1, 1, activation='gelu', padding="same")
 
+    #@tf.function
+    def call(self, inputs, mask=None):
+        primary_one_hot = inputs
+
+        # outer sum to get a NUM_RESIDUES x NUM_RESIDUES x embedding size
+        # x = tf.expand_dims(primary_one_hot, -2) + tf.expand_dims(primary_one_hot, -3)
+
+        # filter the initial representation into an embedded representation
+        # x = self.layer0(x)
+
+
+        # add positional distance information
+        r = tf.range(0, utils.NUM_RESIDUES, dtype=tf.float32)
+        distances = tf.abs(tf.expand_dims(r, -1) - tf.expand_dims(r, -2))
+        distances_bc = tf.expand_dims(
+            tf.broadcast_to(distances, [primary_one_hot.shape[0], utils.NUM_RESIDUES, utils.NUM_RESIDUES]), -1)
+
+        # x = tf.concat([x, x * distances_bc, distances_bc], axis=-1)
+        x = distances_bc
+        # generate result
+        x = self.layer1(x)
+
+        return x
+    
 class ProteinStructurePredictor0(keras.Model):
     def __init__(self):
         super().__init__()
@@ -201,21 +230,24 @@ class ProteinStructurePredictor6(keras.Model):
     def __init__(self):
         super().__init__()
         self.layer0 = keras.layers.Conv2D(7, 5, activation='gelu', padding="same")
-        # self.layer1 = keras.layers.Conv2D(1, 1, activation='gelu', padding="same")
+        self.layer1 = keras.layers.Conv2D(256, 16, 16, activation='gelu', padding="same")
         self.attention = keras.layers.MultiHeadAttention(num_heads=4, key_dim=16)
         self.dense1 = keras.layers.Dense(64, activation='gelu')
-        # self.dense2 = keras.layers.Dense(10, activation='gelu')
+        self.dense2 = keras.layers.Dense(256 * 4, activation='gelu')
+        self.dense3 = keras.layers.Dense(256, activation='gelu')
+        self.drop = keras.layers.Dropout(0.01)
         self.resnet = res.resnet34()
-        self.vit = vit.vit_base_patch16_224_in21k()
         self.add = keras.layers.Add()
     #@tf.function
     def call(self, inputs, mask=None):
         primary_one_hot = inputs
         attention_output = self.attention(primary_one_hot, primary_one_hot, primary_one_hot)
+        # x = primary_one_hot + attention_output
         x = self.add([primary_one_hot , attention_output])
         x = self.dense1(x)
         # outer sum to get a NUM_RESIDUES x NUM_RESIDUES x embedding size
         x = self.add([tf.expand_dims(x, -2) , tf.expand_dims(x, -3)])
+        # x = tf.expand_dims(x, -2) + tf.expand_dims(x, -3)
         # filter the initial representation into an embedded representation
         x = self.layer0(x)
 
@@ -230,9 +262,11 @@ class ProteinStructurePredictor6(keras.Model):
         x = tf.concat([x, x * distances_bc, distances_bc], axis=-1)
         x = self.resnet(x)
         # x = x * tf.expand_dims(mask, axis=-1)
-        x = self.vit(x)
-        # x = self.dense2(x)
-        # x = self.layer1(x)
+        x = self.layer1(x)
+        x = self.dense2(x)
+        x = self.drop(x)
+        x = self.dense3(x)
+        x = tf.reshape(x, [tf.shape(x)[0], utils.NUM_RESIDUES, utils.NUM_RESIDUES])
         return x
   
 def get_n_records(batch):
@@ -375,13 +409,13 @@ def main(data_folder):
 
     # strategy = tf.distribute.MirroredStrategy()
     # with strategy.scope():
-    model = ProteinStructurePredictor6()
+    model = ProteinStructurePredictor00()
     model.optimizer = keras.optimizers.Adam(learning_rate=1e-2)
-    model.batch_size = 8 #1024
+    model.batch_size = 32 #1024
 
 
 
-    epochs = 5
+    epochs = 1
     # Iterate over epochs.
     for epoch in range(epochs):
         epoch_training_records = training_records.shuffle(buffer_size=256).batch(model.batch_size, drop_remainder=False)
@@ -398,7 +432,7 @@ def main(data_folder):
     test(model, test_records, True)
     utils.display_test_loss_epochs(test_loss_epochs)
     save_to_file(avg_loss_list_epochs, avg_mse_loss_list_epochs, validate_loss_list_epochs)
-    model.save(data_folder + 'model.keras')
+    model.save(data_folder + 'model')
 
 
 if __name__ == '__main__':

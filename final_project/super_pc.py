@@ -234,6 +234,42 @@ class ProteinStructurePredictor6(keras.Model):
         # x = self.dense2(x)
         # x = self.layer1(x)
         return x
+    
+class ProteinStructurePredictor7(keras.Model):
+    def __init__(self):
+        super().__init__()
+        self.layer0 = keras.layers.Conv2D(7, 5, activation='gelu', padding="same")
+        self.layer1 = keras.layers.Conv2D(16, 16, activation='gelu', padding="same")
+        self.attention = keras.layers.MultiHeadAttention(num_heads=4, key_dim=16)
+        self.dense1 = keras.layers.Dense(64, activation='gelu')
+        # self.dense2 = keras.layers.Dense(10, activation='gelu')
+        self.resnet = res.resnet34()
+        self.add = keras.layers.Add()
+    #@tf.function
+    def call(self, inputs, mask=None):
+        primary_one_hot = inputs
+        attention_output = self.attention(primary_one_hot, primary_one_hot, primary_one_hot)
+        x = self.add([primary_one_hot , attention_output])
+        x = self.dense1(x)
+        # outer sum to get a NUM_RESIDUES x NUM_RESIDUES x embedding size
+        x = self.add([tf.expand_dims(x, -2) , tf.expand_dims(x, -3)])
+        # filter the initial representation into an embedded representation
+        x = self.layer0(x)
+
+        # add positional distance information
+        r = tf.range(0, utils.NUM_RESIDUES, dtype=tf.float32)
+        distances = tf.abs(tf.expand_dims(r, -1) - tf.expand_dims(r, -2))
+        distances_bc = tf.expand_dims(
+            tf.broadcast_to(distances, [tf.shape(primary_one_hot)[0], utils.NUM_RESIDUES, utils.NUM_RESIDUES]), -1)
+        distances_bc = distances_bc * tf.expand_dims(mask, axis=-1)
+
+
+        x = tf.concat([x, x * distances_bc, distances_bc], axis=-1)
+        x = self.resnet(x)
+        # x = x * tf.expand_dims(mask, axis=-1)
+        # x = self.dense2(x)
+        # x = self.layer1(x)
+        return x
 
 def get_n_records(batch):
     return batch['primary_onehot'].shape[0]
