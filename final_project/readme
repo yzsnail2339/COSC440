@@ -1,6 +1,9 @@
-一些代码来自： https://blog.csdn.net/qq_37541097/article/details/103482003
+Some code can be learned from here: https://blog.csdn.net/qq_37541097/article/details/103482003
 github:https://github.com/WZMIAOMIAO/deep-learning-for-image-processing/tree/master/tensorflow_classification/vision_transformer
+github:https://github.com/WZMIAOMIAO/deep-learning-for-image-processing/tree/master/tensorflow_classification/Test5_resnet
 
-
-模型中实现网络剪枝
-某些步骤中还应该加入normal一下
+model_result: Contains some of the saved results from the model runs. Since some were run on the server, some of them do not display model.summary().
+each_epochs_loss: Saved in the format: Epoch, Avg Loss, Avg MSE Loss, Validation Loss.
+model file and model_keras_save file are the types of models I tried to save. The model_keras_save model was too large, so I have already deleted it.
+The code includes the models I tried: Autoencoder model, Vision Transformer model, and ResNet + Autoencoder.
+Among these, ResNet + Autoencoder performed the best. You can run my ProteinStructurePredictor7(), where the parameters are still being modified and adjusted, so the current loss may not be in the optimal state.

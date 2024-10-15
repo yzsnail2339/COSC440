@@ -268,7 +268,37 @@ class ProteinStructurePredictor6(keras.Model):
         x = self.dense3(x)
         x = tf.reshape(x, [tf.shape(x)[0], utils.NUM_RESIDUES, utils.NUM_RESIDUES])
         return x
-  
+    
+class ProteinStructurePredictor7(keras.Model):
+    def __init__(self):
+        super().__init__()
+        self.layer0 = keras.layers.Conv2D(13, 3, activation='gelu', padding="same")
+        self.attention = keras.layers.MultiHeadAttention(num_heads=4, key_dim=22)
+        self.dense1 = keras.layers.Dense(64, activation='gelu')
+        self.resnet = res.resnet34()
+        self.add = keras.layers.Add()
+    #@tf.function
+    def call(self, inputs, mask=None):
+        primary_one_hot = inputs
+        attention_output = self.attention(primary_one_hot, primary_one_hot, primary_one_hot)
+        # x = primary_one_hot + attention_output
+        x = self.add([primary_one_hot , attention_output])
+        x = self.dense1(x)
+        # outer sum to get a NUM_RESIDUES x NUM_RESIDUES x embedding size
+        x = self.add([tf.expand_dims(x, -2) , tf.expand_dims(x, -3)])
+        # filter the initial representation into an embedded representation
+        x = self.layer0(x)
+        # add positional distance information
+        r = tf.range(0, utils.NUM_RESIDUES, dtype=tf.float32)
+        distances = tf.abs(tf.expand_dims(r, -1) - tf.expand_dims(r, -2))
+        distances_bc = tf.expand_dims(
+            tf.broadcast_to(distances, [tf.shape(primary_one_hot)[0], utils.NUM_RESIDUES, utils.NUM_RESIDUES]), -1)
+        distances_bc = distances_bc * tf.expand_dims(mask, axis=-1)
+        x = tf.concat([x, x * distances_bc, distances_bc], axis=-1)
+        x = self.resnet(x)
+        return x
+
+
 def get_n_records(batch):
     return batch['primary_onehot'].shape[0]
 def get_input_output_masks(batch):
@@ -294,21 +324,20 @@ def record_each_epochs(avg_loss_list,avg_mse_loss_list,validate_loss_list,time_b
 
 
 def save_to_file(avg_loss_list_epochs, avg_mse_loss_list_epochs, validate_loss_list_epochs):
-    # 创建新的文件夹以存储损失记录
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     folder_name = 'each_epochs_loss'
     os.makedirs(folder_name, exist_ok=True)
 
-    # 创建文件路径
+
     file_path = os.path.join(folder_name, f'each_epochs_loss_{timestamp}.csv')
 
-    # 将损失值保存到 CSV 文件中
+
     with open(file_path, mode='w', newline='') as file:
         writer = csv.writer(file)
-        # 写入表头
+        
         writer.writerow(['Epoch', 'Avg Loss', 'Avg MSE Loss', 'Validation Loss'])
         
-        # 写入每一轮的损失值
+        
         for i in range(len(avg_loss_list_epochs)):
             writer.writerow([i + 1, avg_loss_list_epochs[i], avg_mse_loss_list_epochs[i], validate_loss_list_epochs[i]])
 
@@ -389,10 +418,10 @@ def test(model, test_records, viz=False):
         r = random.randint(0, test_preds.shape[0] -1)
         utils.display_two_structures(test_preds[r], test_outputs[r], test_masks[r])
         viz = False
-    test_loss_epochs.append(test_loss_mean)
+    test_loss_epochs.append(test_loss_mean / time_batch)
 
 
-# 递归显示整个主模型的结构
+
 
 def main(data_folder):
     # gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -409,13 +438,13 @@ def main(data_folder):
 
     # strategy = tf.distribute.MirroredStrategy()
     # with strategy.scope():
-    model = ProteinStructurePredictor00()
+    model = ProteinStructurePredictor7()
     model.optimizer = keras.optimizers.Adam(learning_rate=1e-2)
     model.batch_size = 32 #1024
 
 
 
-    epochs = 1
+    epochs = 5
     # Iterate over epochs.
     for epoch in range(epochs):
         epoch_training_records = training_records.shuffle(buffer_size=256).batch(model.batch_size, drop_remainder=False)
