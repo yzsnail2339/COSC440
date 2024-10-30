@@ -1,5 +1,8 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import tensorflow as tf
 import numpy as np
+
 class SuperSampler(tf.keras.layers.Layer):
     def __init__(self):
         # TODO Create the upsampling convolution layers
@@ -38,7 +41,7 @@ class SuperSampler(tf.keras.layers.Layer):
     @tf.function
     def call(self, input):
         # TODO Implement the call function
-        input = tf.image.resize(input, size=(32,32),method='nearest')
+        input = tf.image.resize(input, size=(64,64),method='nearest')
         x =  self.upsampling_convolution_1(input)
         # x = self.upsampling_convolution_2(x)
         # x = self.upsampling_convolution_3(x)

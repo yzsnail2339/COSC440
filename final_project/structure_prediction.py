@@ -8,6 +8,7 @@ import random
 import structure_prediction_utils as utils
 from Autoencoder import AutoEncoder
 import res_autoencoder as res
+import resnet_U as res_u
 import vit_model as vit
 from tensorflow import keras
 import csv
@@ -272,13 +273,16 @@ class ProteinStructurePredictor6(keras.Model):
 class ProteinStructurePredictor7(keras.Model):
     def __init__(self):
         super().__init__()
-        self.layer0 = keras.layers.Conv2D(13, 3, activation='gelu', padding="same")
-        self.attention = keras.layers.MultiHeadAttention(num_heads=4, key_dim=22)
+        self.layer0 = keras.layers.Conv2D(13, 5, activation='gelu', padding="same")
+        self.attention = keras.layers.MultiHeadAttention(num_heads=4, key_dim=21)
         self.dense1 = keras.layers.Dense(64, activation='gelu')
-        self.resnet = res.resnet34()
+        # self.resnet = res.resnet34()
+        self.res_u = res_u.resnet34()
         self.add = keras.layers.Add()
     #@tf.function
     def call(self, inputs, mask=None):
+        print(inputs.dtype)
+        print(mask.dtype)
         primary_one_hot = inputs
         attention_output = self.attention(primary_one_hot, primary_one_hot, primary_one_hot)
         # x = primary_one_hot + attention_output
@@ -295,8 +299,9 @@ class ProteinStructurePredictor7(keras.Model):
             tf.broadcast_to(distances, [tf.shape(primary_one_hot)[0], utils.NUM_RESIDUES, utils.NUM_RESIDUES]), -1)
         distances_bc = distances_bc * tf.expand_dims(mask, axis=-1)
         x = tf.concat([x, x * distances_bc, distances_bc], axis=-1)
-        x = self.resnet(x)
+        x = self.res_u(x)
         return x
+
 
 
 def get_n_records(batch):
@@ -440,7 +445,7 @@ def main(data_folder):
     # with strategy.scope():
     model = ProteinStructurePredictor7()
     model.optimizer = keras.optimizers.Adam(learning_rate=1e-2)
-    model.batch_size = 32 #1024
+    model.batch_size = 20 #1024
 
 
 

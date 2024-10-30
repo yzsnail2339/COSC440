@@ -257,7 +257,6 @@ def _resnet(block, blocks_num, im_width=256, im_height=256):
     x = _make_layer(block, x.shape[-1], 128, blocks_num[1], strides=2, name="block2")(x)
     x = _make_layer(block, x.shape[-1], 256, blocks_num[2], strides=2, name="block3")(x)
     x = _make_layer(block, x.shape[-1], 512, blocks_num[3], strides=2, name="block4")(x)
-
     predict = Decoder()(x)
 
 

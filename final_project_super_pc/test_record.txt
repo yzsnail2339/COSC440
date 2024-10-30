@@ -1,0 +1,15 @@
+tmux attach -t my_session
+tmux new -s my_session
+conda activate superpc-tf
+python final_project/structure_prediction.py
+watch -n 0.1 nvidia-smi
+
+10月20号
+size改回了3，同时把layer0的size改到了5
+第二个调整了学习率
+第三个把最开始的（(b, 256, 256, 21) 乘上了mask
+
+10月21号
+跳跃连接从相加改为了concat叠加
+
+
